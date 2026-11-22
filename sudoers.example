@@ -1,0 +1,2 @@
+# Replace yourusername. See the README security note before using.
+yourusername ALL=(root) NOPASSWD: /usr/local/bin/uwifi
