@@ -106,7 +106,10 @@ P40_5 = [(36, 40), (44, 48), (52, 56), (60, 64), (100, 104), (108, 112),
 B80_5 = [(36, 40, 44, 48), (52, 56, 60, 64), (100, 104, 108, 112),
          (116, 120, 124, 128), (132, 136, 140, 144), (149, 153, 157, 161),
          (165, 169, 173, 177)]
-
+# Kismet 160MHz spellings. Unverified against uwifi, so check before relying on them.
+SFX160_5 = "VHT160"
+SFX160_6 = "HE160"
+B160_5 = [tuple(range(36, 65, 4)), tuple(range(100, 129, 4)), tuple(range(149, 178, 4))]
 
 def combos(info):
     out = []
@@ -152,6 +155,19 @@ def combos(info):
                     out.append(("6g:%dHE80" % s,
                                 "%s ch %d  80MHz (HE80, %d-%d)" %
                                 (label, s, s, s + 12)))
+        if 160 in w and band == "5":
+            for blk in B160_5:
+                if all(x in ch for x in blk):
+                    out.append(("%d%s" % (blk[0], SFX160_5),
+                                "%s ch %d  160MHz (%s, %d-%d)" %
+                                (label, blk[0], SFX160_5, blk[0], blk[-1])))
+        if 160 in w and band == "6":
+            for s in range(1, 234, 32):
+                blk = [s + 4 * i for i in range(8)]
+                if all(x in ch for x in blk):
+                    out.append(("6g:%d%s" % (s, SFX160_6),
+                                "%s ch %d  160MHz (%s, %d-%d)" %
+                                (label, s, SFX160_6, s, blk[-1])))
     return out
 
 
@@ -210,7 +226,7 @@ if a.extcap_config:
           "{tooltip=Built from uwifi info; use the reload button after changing adapters}")
     print_values(info)
     print("arg {number=1}{call=--custom}{display=Custom channels (overrides)}"
-          "{type=string}{tooltip=Kismet notation, e.g. 1,6,11,36VHT80}")
+          "{type=string}{tooltip=Kismet notation. Examples: 6, 36VHT80, 6g:97HE160, 1,6,11,36VHT80. The number is the primary channel; 6GHz needs the 6g: prefix.}")
     sys.exit(0)
 
 if a.capture:
