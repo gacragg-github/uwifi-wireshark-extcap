@@ -21,9 +21,9 @@
 import argparse, json, os, re, subprocess, sys
 
 UWIFI = "/usr/local/bin/uwifi"          # confirm with: command -v uwifi
-# Set to False if `uwifi info` and `uwifi capture` work without sudo on your
-# machine. The sudoers rule is then not needed.
-USE_SUDO = True
+# Set to True only if `uwifi info` and `uwifi capture` need sudo on your
+# machine. The sudoers rule (see README) is then required.
+USE_SUDO = False
 CACHE = os.path.expanduser("~/.cache/uwifi_extcap.json")
 LOG   = "/tmp/uwifi_extcap.log"
 

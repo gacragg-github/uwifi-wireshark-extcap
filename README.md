@@ -29,24 +29,8 @@ monitor-mode traffic from the Wireshark start page without a terminal.
 - A USB Wi-Fi adapter supported by `uwifi`. Tested through this extcap with
   mt7921u, mt7925u, mt76x2u and rtw8814au adapters. 160MHz capture was verified
   on 5GHz and 6GHz with an mt7925u (receive only).
-
-### Does uwifi need root?
-
-It depends on the machine, and the cause is not known. Results so far, with
-`uwifi` run as a normal user (no `sudo`):
-
-| macOS | CPU | uwifi commit | Adapter | Result without sudo |
-|-------|-----|--------------|---------|---------------------|
-| 27.2 | Apple M2 | not recorded | mt7921u | `info` worked, `capture` delivered frames |
-| 26.7.3 | Intel | `6da90c2` (2026-11-14) | mt7921u, mt7925u | `info` worked, `capture` delivered frames |
-| 26.7.3 | Intel | `6da90c2` (2026-11-14) | mt76x2u | `info` worked, `capture` started (frames not checked) |
-
-On an earlier `uwifi` build, the Intel Mac was run with `sudo`. Whether `sudo` was
-actually required then was not recorded.
-
-These rows differ in macOS version, CPU, `uwifi` build and adapter at the same
-time, so they do not show which of those matters. Test your own machine (step 1)
-and set `USE_SUDO` in step 2 to match.
+- Root access may or may not be needed, depending on the machine. Step 1 shows how
+  to check yours, and step 2 sets `USE_SUDO` to match.
 
 ## 1. Install uwifi
 
@@ -104,11 +88,12 @@ python3 -m py_compile "<personal extcap path>/uwifi_extcap" && echo "syntax ok"
 If `command -v uwifi` is not `/usr/local/bin/uwifi`, change the `UWIFI` line near
 the top of the installed `uwifi_extcap` to match.
 
-**If `uwifi` worked without `sudo` in step 1**, set `USE_SUDO = False` near the
-top of the installed `uwifi_extcap`, skip the sudoers rule below, and go on to
-building the channel cache.
+**If `uwifi` worked without `sudo` in step 1**, nothing more is needed here. The
+script runs `uwifi` without `sudo` by default (`USE_SUDO = False`). Skip the
+sudoers rule below and go on to building the channel cache.
 
-**If `uwifi` needs root**, leave `USE_SUDO = True` and install a sudoers rule, so
+**If `uwifi` needs root**, set `USE_SUDO = True` near the top of the installed
+`uwifi_extcap` and install a sudoers rule, so
 the extcap can run `uwifi` as root without a password prompt. Read the Security
 section first. The rule is one line (also in `sudoers.example`), with your
 username and the path from `command -v uwifi`:
@@ -140,7 +125,7 @@ sudo -n uwifi list
 On managed Macs, a privilege-management tool (for example BeyondTrust/Avecto) can
 add its own password prompt to `sudo` and ignore `NOPASSWD`, so this test still
 asks for a password. The sudoers rule cannot work around that. If `uwifi` works
-without `sudo` on that machine, use `USE_SUDO = False`. If it does not, ask the
+without `sudo` on that machine, keep `USE_SUDO = False`. If it does not, ask the
 machine's administrators for an exception for `uwifi`.
 
 Build the channel cache once, then refresh Wireshark:
@@ -198,7 +183,7 @@ interface name each time you capture.
 ### Show what an adapter supports
 
 `uwifi info` loads firmware, and on some machines needs `sudo` (see
-[Does uwifi need root?](#does-uwifi-need-root)). The `Widths:` lines are what the
+[step 1](#1-install-uwifi)). The `Widths:` lines are what the
 extcap uses to build each adapter's dropdown, so an adapter without `160MHz`
 there gets no 160MHz entries. The MAC address below is masked.
 
@@ -397,8 +382,9 @@ counts) to stderr. The extcap saves it in the log.
 
 With `USE_SUDO = True`, this tool runs `uwifi` as root through `sudo`, so
 Wireshark can start captures without a password prompt. Read this before
-installing the sudoers rule. With `USE_SUDO = False`, nothing runs as root and the
-rule is not needed. Use that setting whenever `uwifi` works without `sudo`.
+installing the sudoers rule. With `USE_SUDO = False` (the default), nothing runs
+as root and the rule is not needed. Keep that setting whenever `uwifi` works
+without `sudo`.
 
 **What the rule allows.** `NOPASSWD` for `uwifi` lets any process running as your
 user run `uwifi` as root with any arguments. `uwifi capture -w <path>` writes files,
