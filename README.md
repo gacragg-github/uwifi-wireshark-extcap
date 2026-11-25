@@ -76,12 +76,48 @@ chmod +x "<personal extcap path>/uwifi_extcap"
 python3 -m py_compile "<personal extcap path>/uwifi_extcap" && echo "syntax ok"
 ```
 
-Edit `sudoers.example` for your username and the path from `command -v uwifi`,
-then install it. Read the Security section first.
+Install a sudoers rule so the extcap can run `uwifi` as root without a password
+prompt. Read the Security section first. The rule is one line (also in
+`sudoers.example`), with your username and the path from `command -v uwifi`:
+
+```
+yourusername ALL=(root) NOPASSWD: /usr/local/bin/uwifi
+```
+
+Build it, check the syntax with `visudo -c`, then install it:
 
 ```bash
-sudo visudo -f /etc/sudoers.d/uwifi
+echo "$(whoami) ALL=(root) NOPASSWD: $(command -v uwifi)" > /tmp/uwifi.sudoers
+cat /tmp/uwifi.sudoers
+sudo visudo -cf /tmp/uwifi.sudoers
+sudo install -m 440 -o root -g wheel /tmp/uwifi.sudoers /etc/sudoers.d/uwifi
 ```
+
+Or edit it in place with `sudo visudo -f /etc/sudoers.d/uwifi`, which checks the
+syntax when you save.
+
+Confirm it works without a password (`sudo -k` clears any cached credentials, and
+`-n` makes `sudo` fail instead of prompting):
+
+```bash
+sudo -k
+sudo -n uwifi list
+```
+
+If `command -v uwifi` is not `/usr/local/bin/uwifi`, also change the `UWIFI` line
+near the top of `uwifi_extcap` to match.
+
+**Running without sudo.** On some Macs `uwifi` works without root. Check:
+
+```bash
+uwifi info -d 0
+uwifi capture -d 0 -c 6 -w - 2>/dev/null | tshark -r - -c 10
+```
+
+If both work, set `USE_SUDO = False` near the top of the installed `uwifi_extcap`
+and skip the sudoers rule. This is also the way around managed Macs where a
+privilege-management tool (for example BeyondTrust/Avecto) adds its own password
+prompt to `sudo` and ignores `NOPASSWD`.
 
 Build the channel cache once, then refresh Wireshark:
 

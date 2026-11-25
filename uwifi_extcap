@@ -21,8 +21,17 @@
 import argparse, json, os, re, subprocess, sys
 
 UWIFI = "/usr/local/bin/uwifi"          # confirm with: command -v uwifi
+# Set to False if `uwifi info` and `uwifi capture` work without sudo on your
+# machine. The sudoers rule is then not needed.
+USE_SUDO = True
 CACHE = os.path.expanduser("~/.cache/uwifi_extcap.json")
 LOG   = "/tmp/uwifi_extcap.log"
+
+
+def uwifi_cmd(*args):
+    """Command line for running uwifi, through `sudo -n` if USE_SUDO is set."""
+    base = ["sudo", "-n", UWIFI] if USE_SUDO else [UWIFI]
+    return base + list(args)
 
 
 # ---- cache / adapter discovery ---------------------------------------------
@@ -90,7 +99,7 @@ def parse_info(text):
 def refresh_one(ad):
     """Run `uwifi info` for one adapter, update the cache, return bands or None."""
     try:
-        r = subprocess.run(["sudo", "-n", UWIFI, "info", "-d", str(ad["index"])],
+        r = subprocess.run(uwifi_cmd("info", "-d", str(ad["index"])),
                            capture_output=True, text=True, timeout=90)
     except Exception as e:
         with open(LOG, "a") as f:
@@ -266,5 +275,5 @@ if a.capture:
     err = os.open(LOG, os.O_WRONLY | os.O_APPEND | os.O_CREAT, 0o644)
     os.dup2(out, 1)
     os.dup2(err, 2)
-    os.execvp("sudo", ["sudo", "-n", UWIFI, "capture", "-d", str(idx)]
-              + cargs + ["-w", "-"])
+    cmd = uwifi_cmd("capture", "-d", str(idx), *cargs, "-w", "-")
+    os.execvp(cmd[0], cmd)
