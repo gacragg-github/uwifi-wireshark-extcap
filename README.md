@@ -21,13 +21,32 @@ monitor-mode traffic from the Wireshark start page without a terminal.
 
 ## Requirements
 
-- macOS and Wireshark 4.x. Developed and tested on an Intel MacBook Pro
-  (macOS 26) with Wireshark 4.6. Linux has not been tested.
+- macOS and Wireshark 4.x. Developed on an Intel MacBook Pro (macOS 26,
+  Wireshark 4.6) and also run on an Apple M2 MacBook (macOS 27.2). Linux has not
+  been tested.
 - Python 3 (included with the macOS command line tools).
 - `uwifi`, built and working (next section).
 - A USB Wi-Fi adapter supported by `uwifi`. Tested through this extcap with
   mt7921u, mt7925u, mt76x2u and rtw8814au adapters. 160MHz capture was verified
   on 5GHz and 6GHz with an mt7925u (receive only).
+
+### Does uwifi need root?
+
+It depends on the machine, and the cause is not known. Results so far, with
+`uwifi` run as a normal user (no `sudo`):
+
+| macOS | CPU | uwifi commit | Adapter | Result without sudo |
+|-------|-----|--------------|---------|---------------------|
+| 27.2 | Apple M2 | not recorded | mt7921u | `info` worked, `capture` delivered frames |
+| 26.7.3 | Intel | `6da90c2` (2026-11-14) | mt7921u, mt7925u | `info` worked, `capture` delivered frames |
+| 26.7.3 | Intel | `6da90c2` (2026-11-14) | mt76x2u | `info` worked, `capture` started (frames not checked) |
+
+On an earlier `uwifi` build, the Intel Mac was run with `sudo`. Whether `sudo` was
+actually required then was not recorded.
+
+These rows differ in macOS version, CPU, `uwifi` build and adapter at the same
+time, so they do not show which of those matters. Test your own machine (step 1)
+and set `USE_SUDO` in step 2 to match.
 
 ## 1. Install uwifi
 
@@ -45,16 +64,22 @@ make
 sudo make install
 ```
 
-Check that it works before going further:
+Check that it works before going further. Try without `sudo` first:
 
 ```bash
 uwifi list                    # your adapters should appear
-sudo uwifi info               # bands, channels, widths
-sudo uwifi capture -c 6 -w - 2>/dev/null | tshark -r - -c 10
+uwifi info -d 0               # bands, channels, widths
+uwifi capture -d 0 -c 6 -w - 2>/dev/null | tshark -r - -c 10
 ```
 
-If `tshark` prints 802.11 frames, you are ready. In a zsh window opened before
-the install, run `rehash` so the shell finds the new command.
+If `tshark` prints 802.11 frames, you are ready, and you will not need `sudo`. If
+`info` or `capture` fails with a USB access or permission error, run them again
+with `sudo` in front. If that works, your machine needs root, so follow the
+sudoers steps in section 2. In a zsh window opened before the install, run
+`rehash` so the shell finds the new command.
+
+The examples below are written without `sudo`. If your machine needs root, add
+`sudo` in front of each one.
 
 ## 2. Install the extcap
 
@@ -76,9 +101,17 @@ chmod +x "<personal extcap path>/uwifi_extcap"
 python3 -m py_compile "<personal extcap path>/uwifi_extcap" && echo "syntax ok"
 ```
 
-Install a sudoers rule so the extcap can run `uwifi` as root without a password
-prompt. Read the Security section first. The rule is one line (also in
-`sudoers.example`), with your username and the path from `command -v uwifi`:
+If `command -v uwifi` is not `/usr/local/bin/uwifi`, change the `UWIFI` line near
+the top of the installed `uwifi_extcap` to match.
+
+**If `uwifi` worked without `sudo` in step 1**, set `USE_SUDO = False` near the
+top of the installed `uwifi_extcap`, skip the sudoers rule below, and go on to
+building the channel cache.
+
+**If `uwifi` needs root**, leave `USE_SUDO = True` and install a sudoers rule, so
+the extcap can run `uwifi` as root without a password prompt. Read the Security
+section first. The rule is one line (also in `sudoers.example`), with your
+username and the path from `command -v uwifi`:
 
 ```
 yourusername ALL=(root) NOPASSWD: /usr/local/bin/uwifi
@@ -104,20 +137,11 @@ sudo -k
 sudo -n uwifi list
 ```
 
-If `command -v uwifi` is not `/usr/local/bin/uwifi`, also change the `UWIFI` line
-near the top of `uwifi_extcap` to match.
-
-**Running without sudo.** On some Macs `uwifi` works without root. Check:
-
-```bash
-uwifi info -d 0
-uwifi capture -d 0 -c 6 -w - 2>/dev/null | tshark -r - -c 10
-```
-
-If both work, set `USE_SUDO = False` near the top of the installed `uwifi_extcap`
-and skip the sudoers rule. This is also the way around managed Macs where a
-privilege-management tool (for example BeyondTrust/Avecto) adds its own password
-prompt to `sudo` and ignores `NOPASSWD`.
+On managed Macs, a privilege-management tool (for example BeyondTrust/Avecto) can
+add its own password prompt to `sudo` and ignore `NOPASSWD`, so this test still
+asks for a password. The sudoers rule cannot work around that. If `uwifi` works
+without `sudo` on that machine, use `USE_SUDO = False`. If it does not, ask the
+machine's administrators for an exception for `uwifi`.
 
 Build the channel cache once, then refresh Wireshark:
 
@@ -173,15 +197,16 @@ interface name each time you capture.
 
 ### Show what an adapter supports
 
-`uwifi info` loads firmware and needs `sudo`. The `Widths:` lines are what the
+`uwifi info` loads firmware, and on some machines needs `sudo` (see
+[Does uwifi need root?](#does-uwifi-need-root)). The `Widths:` lines are what the
 extcap uses to build each adapter's dropdown, so an adapter without `160MHz`
 there gets no 160MHz entries. The MAC address below is masked.
 
 <details>
-<summary><code>sudo uwifi info -d 1</code> (mt7925u)</summary>
+<summary><code>uwifi info -d 1</code> (mt7925u)</summary>
 
 ```
-$ sudo uwifi info -d 1
+$ uwifi info -d 1
 Opening adapter 1 and loading firmware...
 Adapter:   Wireless_Device (0846:9072) on USB 0-4.3.2 at 5Gbps, driver mt7925u
 MAC:       00:11:22:33:44:55
@@ -225,7 +250,7 @@ Antennas:  tx 0x3 rx 0x3
 To see only the widths on every adapter:
 
 ```bash
-for i in 0 1 2 3 4; do echo "== $i"; sudo uwifi info -d $i | grep -E 'GHz band|Widths'; done
+for i in 0 1 2 3 4; do echo "== $i"; uwifi info -d $i | grep -E 'GHz band|Widths'; done
 ```
 
 ### Capture to the screen with tshark (no Wireshark GUI)
@@ -234,7 +259,7 @@ for i in 0 1 2 3 4; do echo "== $i"; sudo uwifi info -d $i | grep -E 'GHz band|W
 to stderr, so discard stderr when piping.
 
 ```bash
-sudo uwifi capture -d 1 -c 6g:101HE160 -w - 2>/dev/null | tshark -r - -c 10
+uwifi capture -d 1 -c 6g:101HE160 -w - 2>/dev/null | tshark -r - -c 10
 ```
 
 Illustrative output (yours will differ):
@@ -250,7 +275,7 @@ Other useful forms:
 
 ```bash
 # stop after 20 seconds and save a file
-sudo uwifi capture -d 1 -c 44VHT160 -w /tmp/ch44.pcap -T 20
+uwifi capture -d 1 -c 44VHT160 -w /tmp/ch44.pcap -T 20
 
 # frame-type breakdown of a capture
 tshark -r /tmp/ch44.pcap -T fields -e wlan.fc.type_subtype 2>/dev/null | sort | uniq -c | sort -rn
@@ -282,22 +307,22 @@ this README (the 160MHz ones on an mt7925u). The others follow the syntax in
 For example:
 
 ```bash
-sudo uwifi capture -d 1 -c 6       -w - 2>/dev/null | tshark -r - -c 5   # 2.4GHz ch 6
-sudo uwifi capture -d 1 -c 44VHT80  -w - 2>/dev/null | tshark -r - -c 5   # 5GHz 80MHz
-sudo uwifi capture -d 1 -c 6g:101HE160 -w - 2>/dev/null | tshark -r - -c 5   # 6GHz 160MHz
+uwifi capture -d 1 -c 6       -w - 2>/dev/null | tshark -r - -c 5   # 2.4GHz ch 6
+uwifi capture -d 1 -c 44VHT80  -w - 2>/dev/null | tshark -r - -c 5   # 5GHz 80MHz
+uwifi capture -d 1 -c 6g:101HE160 -w - 2>/dev/null | tshark -r - -c 5   # 6GHz 160MHz
 ```
 
 ### Hop across channels
 
 ```bash
 # a list of channels
-sudo uwifi capture -d 0 -c 1,6,11,36VHT80 -T 60 -w /tmp/hop.pcap
+uwifi capture -d 0 -c 1,6,11,36VHT80 -T 60 -w /tmp/hop.pcap
 
 # every channel in selected bands at selected widths, 250 ms per channel
-sudo uwifi capture -d 1 -b 2,5 -W 20,40,80 -t 250 -T 60 -w /tmp/hop.pcap
+uwifi capture -d 1 -b 2,5 -W 20,40,80 -t 250 -T 60 -w /tmp/hop.pcap
 
 # 6GHz at 160MHz only (hopping with 160MHz is untested)
-sudo uwifi capture -d 1 -b 6 -W 160 -T 60 -w /tmp/hop160.pcap
+uwifi capture -d 1 -b 6 -W 160 -T 60 -w /tmp/hop160.pcap
 ```
 
 ### Use the extcap from the command line
@@ -315,8 +340,8 @@ Run the script the way Wireshark does, to see its output:
 "<personal extcap path>/uwifi_extcap" --extcap-config --extcap-interface mt7925-0
 ```
 
-You can also drive a capture by hand through a named pipe. The sudoers rule must
-be installed. This method was not run while writing this README.
+You can also drive a capture by hand through a named pipe. With `USE_SUDO = True`,
+the sudoers rule must be installed first. This method was not run while writing this README.
 
 ```bash
 mkfifo /tmp/uwifi.fifo
@@ -354,9 +379,10 @@ counts) to stderr. The extcap saves it in the log.
 - **Fewer adapters than expected.** Compare with `uwifi list`. An adapter held by
   another process (a running Kismet, for example) or a USB hub problem can hide it.
 - **Dropdown shows only a few channels.** Run `uwifi_extcap --refresh` or press the
-  reload button. Both need the sudoers rule.
+  reload button. With `USE_SUDO = True`, both need the sudoers rule. With
+  `USE_SUDO = False`, check that `uwifi info -d N` works without `sudo`.
 - **No 160MHz entries.** The adapter does not report `160MHz`. Check with
-  `sudo uwifi info -d N | grep Widths`, then reload.
+  `uwifi info -d N | grep Widths`, then reload.
 - **A capture starts but shows no packets.** Read `/tmp/uwifi_extcap.log`. Typical
   causes are a sudoers path that does not match `command -v uwifi`, an adapter held
   by another process, or a replugged device.
@@ -369,8 +395,10 @@ counts) to stderr. The extcap saves it in the log.
 
 ## Security
 
-This tool runs `uwifi` as root through `sudo` so Wireshark can start captures
-without a password prompt. Read this before installing the sudoers rule.
+With `USE_SUDO = True`, this tool runs `uwifi` as root through `sudo`, so
+Wireshark can start captures without a password prompt. Read this before
+installing the sudoers rule. With `USE_SUDO = False`, nothing runs as root and the
+rule is not needed. Use that setting whenever `uwifi` works without `sudo`.
 
 **What the rule allows.** `NOPASSWD` for `uwifi` lets any process running as your
 user run `uwifi` as root with any arguments. `uwifi capture -w <path>` writes files,
