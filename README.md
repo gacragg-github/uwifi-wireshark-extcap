@@ -142,6 +142,13 @@ In Wireshark choose **Capture → Refresh Interfaces**. On a Mac laptop, F5 is F
    "uwifi <name> (<driver> <usb id>, <speed>)".
 2. Click the gear icon next to an adapter. Pick a channel from the dropdown, or
    type a channel list in the custom field (it overrides the dropdown).
+
+   <img src="docs/images/extcap-config.png" alt="Wireshark capture options for a uwifi adapter: channel dropdown with reload button, custom channels field, and the uwifi interfaces listed below" width="600">
+
+   The dropdown lists only the bands and widths the adapter reports:
+
+   <img src="docs/images/extcap-dropdown.png" alt="The channel dropdown opened on an mt7925u, showing 6GHz 20, 80 and 160MHz channel entries" width="600">
+
 3. Start the capture. To use several adapters, select them together
    (Cmd-click) and put each on a different channel.
 4. The reload button next to the channel list re-reads that adapter's supported
