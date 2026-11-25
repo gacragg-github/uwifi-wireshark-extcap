@@ -24,6 +24,10 @@ UWIFI = "/usr/local/bin/uwifi"          # confirm with: command -v uwifi
 # Set to True only if `uwifi info` and `uwifi capture` need sudo on your
 # machine. The sudoers rule (see README) is then required.
 USE_SUDO = False
+# Regulatory country passed to uwifi as -C, e.g. "US" or "DE"; "" for none.
+# Some drivers (rtw89, the RTL8912AU/RTL8922AU) leave 6GHz disabled without one.
+# After changing it, press the Channel reload button so the list is rebuilt.
+COUNTRY = "US"
 CACHE = os.path.expanduser("~/.cache/uwifi_extcap.json")
 LOG   = "/tmp/uwifi_extcap.log"
 
@@ -31,7 +35,8 @@ LOG   = "/tmp/uwifi_extcap.log"
 def uwifi_cmd(*args):
     """Command line for running uwifi, through `sudo -n` if USE_SUDO is set."""
     base = ["sudo", "-n", UWIFI] if USE_SUDO else [UWIFI]
-    return base + list(args)
+    country = ["-C", COUNTRY] if COUNTRY else []
+    return base + country + list(args)
 
 
 # ---- cache / adapter discovery ---------------------------------------------
