@@ -90,8 +90,12 @@ def parse_info(text):
             in_ch = True
             continue
         if in_ch:
-            if re.match(r"^[\d\s]+$", line) and line.strip():
-                bands[cur]["channels"] += [int(x) for x in line.split()]
+            # "  36  40(r) 169(x)": (x) is disabled, (r) is radar/DFS, which
+            # still receives, so only (x) channels are left out
+            if line.strip() and re.match(r"^(\s*\d+(\([a-z]\))?)+\s*$", line):
+                bands[cur]["channels"] += [
+                    int(n) for n, flag in re.findall(r"(\d+)(?:\(([a-z])\))?", line)
+                    if flag != "x"]
                 continue
             in_ch = False
         m = re.match(r"^\s+Widths:\s+(.*)", line)
