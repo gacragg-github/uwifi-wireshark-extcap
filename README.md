@@ -88,6 +88,15 @@ python3 -m py_compile "<personal extcap path>/uwifi_extcap" && echo "syntax ok"
 If `command -v uwifi` is not `/usr/local/bin/uwifi`, change the `UWIFI` line near
 the top of the installed `uwifi_extcap` to match.
 
+To set a regulatory country, change the `COUNTRY` line near the top (for example
+`COUNTRY = "DE"`). The extcap passes it to `uwifi info` and `uwifi capture` as
+`-C`; set it to `""` to pass none. Some drivers depend on it: rtw89 adapters
+(RTL8912AU/RTL8922AU, with a `uwifi` build that includes rtw89) disable every 6GHz
+channel until a country is set. It is a setting in the script rather than a field
+in the capture dialog because the channel list is built when you press reload, and
+Wireshark does not pass other dialog values then. After changing it, press the
+reload button (or run `uwifi_extcap --refresh`) so the channel list is rebuilt.
+
 **If `uwifi` worked without `sudo` in step 1**, nothing more is needed here. The
 script runs `uwifi` without `sudo` by default (`USE_SUDO = False`). Skip the
 sudoers rule below and go on to building the channel cache.
@@ -373,6 +382,9 @@ counts) to stderr. The extcap saves it in the log.
 - **Dropdown shows only a few channels.** Run `uwifi_extcap --refresh` or press the
   reload button. With `USE_SUDO = True`, both need the sudoers rule. With
   `USE_SUDO = False`, check that `uwifi info -d N` works without `sudo`.
+- **No 6GHz entries.** Check `uwifi -C US info -d N | grep 6GHz` (with your
+  country). If 6GHz channels are enabled there but not without `-C`, set `COUNTRY`
+  in the script and reload.
 - **No 160MHz entries.** The adapter does not report `160MHz`. Check with
   `uwifi info -d N | grep Widths`, then reload.
 - **A capture starts but shows no packets.** Read `/tmp/uwifi_extcap.log`. Typical
